@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Paiement</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="label">Entrez votre numéro de téléphone</div>
+
+    <div class="input-group">
+        <div class="flag-box">
+            <div class="flag"></div>
+        </div>
+        <input id="phone" class="phone-input" type="tel"
+            placeholder="6xxxxxxxx"
+            maxlength="9"
+            inputmode="numeric">
+    </div>
+
+    <div class="label">Mode de paiement</div>
+
+    <div class="select-container">
+
+        <div class="select-box" onclick="toggleDropdown()">
+            <span class="select-text" id="selected">Orange Money</span>
+            <i class="arrow"></i>
+        </div>
+
+        <div class="dropdown" id="dropdown">
+            <div onclick="selectOption('orange')">Orange Money</div>
+            <div onclick="selectOption('mtn')">MTN Mobile Money</div>
+        </div>
+
+    </div>
+
+    <div class="buttons">
+        <button class="btn" onclick="cancelPayment()">Annuler</button>
+        <button class="btn primary" onclick="pay()">Payer</button>
+    </div>
+
+</div>
+
+<!-- MODAL -->
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <div id="modal-amount" class="modal-amount">10 000 FCFA</div>
+    <div id="modal-timer" class="modal-timer">2:00</div>
+    <div id="modal-loader" class="loader"></div>
+    <p id="modal-text">Traitement...</p>
+    <button id="modal-close" onclick="closeModal()">Fermer</button>
+  </div>
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
