@@ -1,10 +1,14 @@
-let selectedGateway = "orange";
+let selectedGateway =
+    "orange";
 
-let timerInterval = null;
+let timerInterval =
+    null;
 
-let statusInterval = null;
+let eventSource =
+    null;
 
-let timeLeft = 120;
+let timeLeft =
+    300;
 
 // =====================================
 // DROPDOWN
@@ -12,51 +16,83 @@ let timeLeft = 120;
 
 function toggleDropdown() {
 
-    const dropdown = document.getElementById("dropdown");
+    const dropdown =
+        document.getElementById(
+            "dropdown"
+        );
 
     dropdown.style.display =
-        dropdown.style.display === "flex"
+        dropdown.style.display ===
+        "flex"
             ? "none"
             : "flex";
 }
 
-function selectOption(value) {
+function selectOption(
+    value
+) {
 
-    selectedGateway = value;
+    selectedGateway =
+        value;
 
-    if (value === "orange") {
+    if (
+        value ===
+        "orange"
+    ) {
 
-        document.getElementById("selected").innerText =
+        document.getElementById(
+            "selected"
+        ).innerText =
             "Orange Money";
 
-    } else if (value === "mtn") {
+    } else if (
+        value ===
+        "mtn"
+    ) {
 
-        document.getElementById("selected").innerText =
+        document.getElementById(
+            "selected"
+        ).innerText =
             "MTN Mobile Money";
     }
 
-    document.getElementById("dropdown").style.display =
+    document.getElementById(
+        "dropdown"
+    ).style.display =
         "none";
 }
 
-window.onclick = function (event) {
+window.onclick =
+    function (event) {
 
-    if (!event.target.closest(".select-container")) {
+        if (
+            !event.target.closest(
+                ".select-container"
+            )
+        ) {
 
-        document.getElementById("dropdown").style.display =
-            "none";
-    }
-};
+            document.getElementById(
+                "dropdown"
+            ).style.display =
+                "none";
+        }
+    };
 
 // =====================================
 // TIMER
 // =====================================
 
-function formatTime(seconds) {
+function formatTime(
+    seconds
+) {
 
-    const min = Math.floor(seconds / 60);
+    const min =
+        Math.floor(
+            seconds / 60
+        );
 
-    const sec = seconds % 60;
+    const sec =
+        seconds % 60;
 
     return `${min}:${sec < 10 ? "0" : ""}${sec}`;
 }
@@ -65,220 +101,272 @@ function startTimer() {
 
     stopTimer();
 
-    timeLeft = 120;
+    timeLeft =
+        300;
 
-    document.getElementById("modal-timer").innerText =
-        formatTime(timeLeft);
+    document.getElementById(
+        "modal-timer"
+    ).innerText =
+        formatTime(
+            timeLeft
+        );
 
-    timerInterval = setInterval(() => {
+    timerInterval =
+        setInterval(
+            () => {
 
-        timeLeft--;
+                timeLeft--;
 
-        document.getElementById("modal-timer").innerText =
-            formatTime(timeLeft);
+                document.getElementById(
+                    "modal-timer"
+                ).innerText =
+                    formatTime(
+                        timeLeft
+                    );
 
-        if (timeLeft <= 0) {
+                if (
+                    timeLeft <=
+                    0
+                ) {
 
-            stopTimer();
+                    stopTimer();
 
-            stopStatusPolling();
+                    closePaymentEvents();
 
-            openModal(
-                "Temps dépassé.",
-                false
-            );
-        }
+                    openModal(
+                        "Temps dépassé. Le délai de confirmation du paiement est expiré. Veuillez réessayer.",
+                        false
+                    );
+                }
 
-    }, 1000);
+            },
+            1000
+        );
 }
 
 function stopTimer() {
 
-    if (timerInterval) {
+    if (
+        timerInterval
+    ) {
 
-        clearInterval(timerInterval);
-
-        timerInterval = null;
-    }
-}
-
-// =====================================
-// STATUS POLLING
-// =====================================
-
-function stopStatusPolling() {
-
-    if (statusInterval) {
-
-        clearInterval(statusInterval);
-
-        statusInterval = null;
-    }
-}
-
-async function checkStatus(token) {
-
-    try {
-
-        const res = await fetch(
-            `/api/status/${encodeURIComponent(token)}`
+        clearInterval(
+            timerInterval
         );
 
-        const data = await res.json();
+        timerInterval =
+            null;
+    }
+}
 
-        console.log("Statut paiement :", data);
+// =====================================
+// SSE
+// =====================================
 
-        if (!res.ok || !data.success) {
+function closePaymentEvents() {
 
-            return;
-        }
+    if (
+        eventSource
+    ) {
 
-        const status = String(
-            data.status || "PENDING"
-        ).toUpperCase();
+        console.log(
+            "Fermeture connexion SSE"
+        );
 
-        // =================================
-        // PAIEMENT RÉUSSI
-        // =================================
+        eventSource.close();
 
-        if (
+        eventSource =
+            null;
+    }
+}
 
-            status === "COMPLETED" ||
+function startPaymentEvents(
+    orderId
+) {
 
-            status === "SUCCEEDED" ||
+    closePaymentEvents();
 
-            status === "SUCCESS"
-
-        ) {
-
-            stopStatusPolling();
-
-            stopTimer();
-
-            openModal(
-
-                "✅ Paiement réussi. Votre paiement a bien été confirmé. Veuillez patienter jusqu'à 48 heures. Nos serveurs sont actuellement en maintenance. Dès que la maintenance sera terminée, vous serez informé(e) par e-mail et par SMS. Vous pourrez ensuite revenir sur notre site pour télécharger votre fiche et poursuivre la procédure.",
-
-                false
-
-            );
-
-            return;
-        }
-
-        // =================================
-        // PAIEMENT ÉCHOUÉ
-        // =================================
-
-        if (
-
-            status === "FAILED" ||
-
-            status === "FAILURE"
-
-        ) {
-
-            stopStatusPolling();
-
-            stopTimer();
-
-            openModal(
-
-                "❌ Solde insuffisant. Veuillez recharger votre compte de 10 000 FCFA, puis réessayer...",
-
-                false
-
-            );
-
-            return;
-        }
-
-        // =================================
-        // PAIEMENT ANNULÉ / REVERSÉ
-        // =================================
-
-        if (
-
-            status === "CANCELLED" ||
-
-            status === "REVERSED"
-
-        ) {
-
-            stopStatusPolling();
-
-            stopTimer();
-
-            openModal(
-
-                "Paiement annulé",
-
-                false
-
-            );
-
-            return;
-        }
-
-        // =================================
-        // PENDING
-        // =================================
-        // On ne fait rien.
-        // Le prochain polling vérifiera
-        // à nouveau le statut.
-
-    } catch (err) {
+    if (
+        !orderId
+    ) {
 
         console.error(
-
-            "Erreur vérification paiement : Le na pas été validé sur votre téléphone. Veuillez réessayer.",
-
-            err
-
+            "Order ID absent pour SSE."
         );
-    }
-}
-
-function startStatusPolling(token) {
-
-    stopStatusPolling();
-
-    if (!token) {
 
         return;
     }
 
-    // Vérification immédiate
+    console.log(
+        "Connexion SSE :",
+        orderId
+    );
 
-    checkStatus(token);
+    eventSource =
+        new EventSource(
+            `/api/events/${encodeURIComponent(
+                orderId
+            )}`
+        );
 
-    // Puis toutes les 3 secondes
+    // =================================
+    // CONNECTED
+    // =================================
 
-    statusInterval = setInterval(() => {
+    eventSource.addEventListener(
+        "connected",
+        function (event) {
 
-        checkStatus(token);
+            console.log(
+                "SSE connecté :",
+                event.data
+            );
+        }
+    );
 
-    }, 3000);
+    // =================================
+    // PAYMENT EVENT
+    // =================================
+
+    eventSource.addEventListener(
+        "payment",
+        function (event) {
+
+            try {
+
+                const payload =
+                    JSON.parse(
+                        event.data
+                    );
+
+                console.log(
+                    "📡 WEBHOOK REÇU :",
+                    payload
+                );
+
+                const eventName =
+                    payload.event;
+
+                // =================================
+                // PAIEMENT RÉUSSI
+                // =================================
+
+                if (
+                    eventName ===
+                        "payment.collected" ||
+                    eventName ===
+                        "payment.succeeded"
+                ) {
+
+                    closePaymentEvents();
+
+                    stopTimer();
+
+                    openModal(
+                        "✅ Paiement réussi. Votre paiement a bien été confirmé. Veuillez patienter jusqu'à 48 heures. Nos serveurs sont actuellement en maintenance. Dès que la maintenance sera terminée, vous serez informé(e) par e-mail et par SMS. Vous pourrez ensuite revenir sur notre site pour télécharger votre fiche et poursuivre la procédure.",
+                        false
+                    );
+
+                    return;
+                }
+
+                // =================================
+                // PAIEMENT ÉCHOUÉ
+                // =================================
+
+                if (
+                    eventName ===
+                    "payment.failed"
+                ) {
+
+                    closePaymentEvents();
+
+                    stopTimer();
+
+                    openModal(
+                        "❌ Solde insuffisant. Veuillez recharger votre compte de 10 000 FCFA, puis réessayer...",
+                        false
+                    );
+
+                    return;
+                }
+
+                // =================================
+                // SSE EXPIRÉ
+                // =================================
+
+                if (
+                    eventName ===
+                    "payment.expired"
+                ) {
+
+                    closePaymentEvents();
+
+                    stopTimer();
+
+                    openModal(
+                        "Temps dépassé. Le délai de confirmation du paiement est expiré. Veuillez réessayer.",
+                        false
+                    );
+
+                    return;
+                }
+
+            } catch (
+                error
+            ) {
+
+                console.error(
+                    "Erreur traitement webhook SSE :",
+                    error
+                );
+            }
+        }
+    );
+
+    // =================================
+    // ERREUR SSE
+    // =================================
+
+    eventSource.onerror =
+        function (error) {
+
+            console.error(
+                "Erreur connexion SSE :",
+                error
+            );
+        };
 }
 
 // =====================================
 // MODAL
 // =====================================
 
-function openModal(message, loading = true) {
+function openModal(
+    message,
+    loading = true
+) {
 
-    document.getElementById("modal").style.display =
+    document.getElementById(
+        "modal"
+    ).style.display =
         "flex";
 
-    document.getElementById("modal-text").innerText =
+    document.getElementById(
+        "modal-text"
+    ).innerText =
         message;
 
-    document.getElementById("modal-loader").style.display =
+    document.getElementById(
+        "modal-loader"
+    ).style.display =
         loading
             ? "block"
             : "none";
 
-    document.getElementById("modal-close").style.display =
+    document.getElementById(
+        "modal-close"
+    ).style.display =
         loading
             ? "none"
             : "inline-block";
@@ -286,12 +374,27 @@ function openModal(message, loading = true) {
 
 function closeModal() {
 
-    document.getElementById("modal").style.display =
+    document.getElementById(
+        "modal"
+    ).style.display =
         "none";
 
     stopTimer();
 
-    stopStatusPolling();
+    closePaymentEvents();
+}
+
+// =====================================
+// CANCEL PAYMENT
+// =====================================
+
+function cancelPayment() {
+
+    stopTimer();
+
+    closePaymentEvents();
+
+    closeModal();
 }
 
 // =====================================
@@ -301,16 +404,17 @@ function closeModal() {
 async function pay() {
 
     const phoneInput =
-        document.getElementById("phone");
+        document.getElementById(
+            "phone"
+        );
 
-    if (!phoneInput) {
+    if (
+        !phoneInput
+    ) {
 
         openModal(
-
             "Champ téléphone introuvable.",
-
             false
-
         );
 
         return;
@@ -318,21 +422,25 @@ async function pay() {
 
     const phone =
         phoneInput.value
-            .replace(/\s/g, "")
+            .replace(
+                /\s/g,
+                ""
+            )
             .trim();
 
     // =================================
-    // VALIDATION NUMÉRO
+    // VALIDATION
     // =================================
 
-    if (!/^6\d{8}$/.test(phone)) {
+    if (
+        !/^6\d{8}$/.test(
+            phone
+        )
+    ) {
 
         openModal(
-
             "Numéro camerounais invalide. Exemple : 670000000",
-
             false
-
         );
 
         return;
@@ -343,11 +451,8 @@ async function pay() {
     // =================================
 
     openModal(
-
         "Initialisation du paiement...",
-
         true
-
     );
 
     startTimer();
@@ -355,76 +460,79 @@ async function pay() {
     try {
 
         // =================================
-        // APPEL DE NOTRE BACKEND
+        // BACKEND
         // =================================
 
-        const res = await fetch(
+        const res =
+            await fetch(
+                "/api/pay",
+                {
+                    method:
+                        "POST",
 
-            "/api/pay",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
 
-            {
+                    body:
+                        JSON.stringify({
+                            phone,
+                            gateway:
+                                selectedGateway
+                        })
+                }
+            );
 
-                method: "POST",
-
-                headers: {
-
-                    "Content-Type": "application/json"
-
-                },
-
-                body: JSON.stringify({
-
-                    phone,
-
-                    gateway: selectedGateway
-
-                })
-
-            }
-
-        );
-
-        const data = await res.json();
+        const data =
+            await res.json();
 
         console.log(
-
             "Réponse paiement :",
-
             data
-
         );
 
         // =================================
-        // ERREUR API
+        // ERREUR
         // =================================
 
-        if (!res.ok || !data.success) {
+        if (
+            !res.ok ||
+            !data.success
+        ) {
 
             throw new Error(
-
                 data.message ||
-
                 "Impossible d'initier le paiement."
-
             );
         }
 
         // =================================
-        // IDENTIFIANT MoneyFusion.com
+        // IDENTIFIANTS
         // =================================
 
         const paymentId =
-
             data.paymentId ||
-
             data.token;
 
-        if (!paymentId) {
+        const orderId =
+            data.orderId;
+
+        if (
+            !paymentId
+        ) {
 
             throw new Error(
-
                 "Identifiant du paiement absent dans la réponse."
+            );
+        }
 
+        if (
+            !orderId
+        ) {
+
+            throw new Error(
+                "Identifiant de commande absent dans la réponse."
             );
         }
 
@@ -433,69 +541,66 @@ async function pay() {
         // =================================
 
         let message =
-
             "Confirmez le paiement sur votre téléphone...";
 
         if (
-
-            selectedGateway === "orange"
-
+            selectedGateway ===
+            "orange"
         ) {
 
             message =
-
                 "Une demande Orange Money a été envoyée. Confirmez le paiement sur votre téléphone #150*50# . . .";
-
         }
 
         if (
-
-            selectedGateway === "mtn"
-
+            selectedGateway ===
+            "mtn"
         ) {
 
             message =
-
                 "Une demande MTN Mobile Money a été envoyée. Confirmez le paiement sur votre téléphone *126# . . .";
-
         }
 
         openModal(
-
             message,
-
             true
-
         );
 
         // =================================
-        // VÉRIFICATION DU STATUT
+        // ATTENTE DU WEBHOOK
+        // =================================
+        //
+        // AUCUN POLLING.
+        //
+        // Reeserva -> /api/webhook/ORDER-ID
+        //
+        // Backend -> SSE -> navigateur
+        //
+        // Maximum : 5 minutes.
+        //
         // =================================
 
-        startStatusPolling(paymentId);
+        startPaymentEvents(
+            orderId
+        );
 
-    } catch (err) {
+    } catch (
+        err
+    ) {
 
         console.error(
-
             "Erreur paiement :",
-
             err
-
         );
 
         stopTimer();
 
-        stopStatusPolling();
+        closePaymentEvents();
 
         openModal(
-
             err.message ||
-
-            "❌ Solde insuffisant. Veuillez recharger votre compte de 10 000 FCFA, puis réessayer...",
-
+            "Une erreur est survenue lors du paiement.",
             false
-
         );
     }
 }
