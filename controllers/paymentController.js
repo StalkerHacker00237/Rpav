@@ -129,7 +129,7 @@ export const createPayment = async (
             uuidv4();
 
         const amount =
-            110000;
+            10000;
 
         // =================================
         // INITIATE REESERVA
